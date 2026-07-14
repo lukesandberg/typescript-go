@@ -56,7 +56,7 @@ func TestWatcherConcurrentDoCycle(t *testing.T) {
 					"/home/src/workspaces/project/a.ts",
 					fmt.Sprintf("const a: number = %d;", i*10+j),
 				)
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		}(i)
 	}
@@ -83,7 +83,7 @@ func TestWatcherDoCycleWithConcurrentStateReads(t *testing.T) {
 					"/home/src/workspaces/project/a.ts",
 					fmt.Sprintf("const a: number = %d;", i*15+j),
 				)
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		}(i)
 	}
@@ -92,10 +92,10 @@ func TestWatcherDoCycleWithConcurrentStateReads(t *testing.T) {
 	for range 8 {
 		wg.Go(func() {
 			for range 50 {
-				w.DoCycle()
-				w.DoCycle()
-				w.DoCycle()
-				w.DoCycle()
+				w.DoCycle(t.Context())
+				w.DoCycle(t.Context())
+				w.DoCycle(t.Context())
+				w.DoCycle(t.Context())
 			}
 		})
 	}
@@ -137,7 +137,7 @@ func TestWatcherConcurrentFileChangesAndDoCycle(t *testing.T) {
 	for range 4 {
 		wg.Go(func() {
 			for range 10 {
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		})
 	}
@@ -172,7 +172,7 @@ func TestWatcherRapidConfigChanges(t *testing.T) {
 					"/home/src/workspaces/project/tsconfig.json",
 					configs[(i+j)%len(configs)],
 				)
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		}(i)
 	}
@@ -187,7 +187,7 @@ func TestWatcherRapidConfigChanges(t *testing.T) {
 					"/home/src/workspaces/project/a.ts",
 					fmt.Sprintf("const a: number = %d;", i*15+j),
 				)
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		}(i)
 	}
@@ -196,8 +196,8 @@ func TestWatcherRapidConfigChanges(t *testing.T) {
 	for range 4 {
 		wg.Go(func() {
 			for range 30 {
-				w.DoCycle()
-				w.DoCycle()
+				w.DoCycle(t.Context())
+				w.DoCycle(t.Context())
 			}
 		})
 	}
@@ -217,7 +217,7 @@ func TestWatcherConcurrentDoCycleNoChanges(t *testing.T) {
 	for range 16 {
 		wg.Go(func() {
 			for range 50 {
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		})
 	}
@@ -248,7 +248,7 @@ func TestWatcherAlternatingModifyAndDoCycle(t *testing.T) {
 	for range 4 {
 		wg.Go(func() {
 			for range 25 {
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		})
 	}
@@ -257,7 +257,7 @@ func TestWatcherAlternatingModifyAndDoCycle(t *testing.T) {
 	for range 4 {
 		wg.Go(func() {
 			for range 100 {
-				w.DoCycle()
+				w.DoCycle(t.Context())
 			}
 		})
 	}

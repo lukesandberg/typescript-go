@@ -210,7 +210,10 @@ func (w *Watcher) comparePathsOptions() tspath.ComparePathsOptions {
 	}
 }
 
-func (w *Watcher) DoCycle() {
+// DoCycle runs one watch cycle. It accepts a context to satisfy tsc.Watcher and carry
+// cancellation, but the rebuild here is not yet interruptible mid-cycle (see the TODO
+// in compileAndEmit): cancellation is still only observed between cycles by RunLoop.
+func (w *Watcher) DoCycle(_ context.Context) {
 	w.wm.Lock()
 	defer w.wm.Unlock()
 

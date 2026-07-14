@@ -328,14 +328,14 @@ func (wm *WatchManager) IsPathUnderWatch(path string, opts tspath.ComparePathsOp
 	return false
 }
 
-func (wm *WatchManager) RunLoop(ctx context.Context, doCycle func()) {
+func (wm *WatchManager) RunLoop(ctx context.Context, doCycle func(context.Context)) {
 	for {
 		select {
 		case <-ctx.Done():
 			wm.CloseAllWatches()
 			return
 		case <-wm.doCycleCh:
-			doCycle()
+			doCycle(ctx)
 		}
 	}
 }

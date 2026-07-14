@@ -2,6 +2,7 @@ package tsctests
 
 import (
 	"context"
+	"io"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -256,5 +257,79 @@ func TestTscCancellationSweep(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestBuildWatchRebuildCancellation verifies that a rebuild triggered by a file change
+// in `tsc -b --watch` is interruptible mid-cycle: canceling during the rebuild aborts
+// it (the checker's cooperative polling stops) rather than running it to completion.
+// The context is threaded RunLoop -> DoCycle -> buildOrClean; this drives DoCycle
+// directly with a canceling context, which is exactly what RunLoop does in production.
+func TestBuildWatchRebuildCancellation(t *testing.T) {
+	t.Parallel()
+
+	// Many statements so the rebuild polls ctx.Err() enough times to cancel mid-check.
+	var initial strings.Builder
+	for i := range 50 {
+		initial.WriteString("export const v")
+		initial.WriteString(strings.Repeat("x", i+1))
+		initial.WriteString(": number = 1;\n")
+	}
+
+	sys := newTestSys(&tscInput{
+		commandLineArgs: []string{"-b", "--watch"},
+		files: FileMap{
+			"/home/src/workspaces/project/tsconfig.json": `{ "compilerOptions": { "composite": true, "strict": true } }`,
+			"/home/src/workspaces/project/main.ts":       initial.String(),
+		},
+	}, false)
+
+	// Initial build runs to completion and establishes the watcher.
+	result := execute.CommandLine(context.Background(), sys, []string{"-b", "--watch"}, sys)
+	if result.Watcher == nil {
+		t.Fatal("expected a watcher after the initial build")
+	}
+	// Snapshot the FS so the edit below is detected as a change.
+	sys.baselineFSwithDiff(io.Discard)
+
+	// Edit the file to introduce a type error (TS2322), then drive one rebuild cycle.
+	// Whether that diagnostic is reported tells us if the rebuild ran to completion.
+	var edited strings.Builder
+	for i := range 50 {
+		edited.WriteString("export const v")
+		edited.WriteString(strings.Repeat("x", i+1))
+		edited.WriteString(`: number = "not a number";` + "\n")
+	}
+	sys.writeFileNoError("/home/src/workspaces/project/main.ts", edited.String())
+	sys.mockWatchBackend.SendChangedPaths(sys.fsDiffer.ChangedPaths())
+	sys.clearOutput()
+
+	// Cancel during the rebuild.
+	ctx := newCancelAfterNPolls(5)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("rebuild panicked (want clean abort): %v", r)
+			}
+		}()
+		result.Watcher.DoCycle(ctx)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("rebuild did not abort after mid-cycle cancellation")
+	}
+
+	if !ctx.tripped.Load() {
+		t.Fatal("expected cancellation to trip during the rebuild, but it never did")
+	}
+	// An aborted rebuild must not report the diagnostics from its incomplete check.
+	// (Match the code, not "error TS": watch output is ANSI-colored, which splits that
+	// substring.)
+	if out := sys.getOutput(true); strings.Contains(out, "TS2322") {
+		t.Errorf("expected no diagnostics after mid-cycle cancellation; got output:\n%s", out)
 	}
 }

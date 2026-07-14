@@ -543,7 +543,7 @@ func (o *Orchestrator) addPackageJsonWatchDirs(desiredDirs map[string]bool, pack
 	}
 }
 
-func (o *Orchestrator) DoCycle() {
+func (o *Orchestrator) DoCycle(ctx context.Context) {
 	o.wm.Lock()
 	defer o.wm.Unlock()
 
@@ -585,8 +585,12 @@ func (o *Orchestrator) DoCycle() {
 		o.GenerateGraphReusingOldTasks()
 	}
 
-	// TODO: propagate a proper context here and support cancellation with cycle
-	o.buildOrClean(context.Background())
+	// Rebuilds are interruptible: the RunLoop context is threaded in so a long rebuild
+	// aborts on signal. A canceled rebuild leaves task state partial, but RunLoop shuts
+	// down on its next iteration, so the watch bookkeeping below runs just before
+	// teardown; updateDownstream's cancellation guard keeps partial results from
+	// seeding downstream rebuild decisions.
+	o.buildOrClean(ctx)
 	o.updateWatch()
 	desiredDirs := o.computeDesiredWatches()
 	if err := o.wm.ReconcileWatches(desiredDirs); err != nil {

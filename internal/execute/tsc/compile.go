@@ -1,6 +1,7 @@
 package tsc
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -40,7 +41,7 @@ const (
 )
 
 type Watcher interface {
-	DoCycle()
+	DoCycle(ctx context.Context)
 }
 
 type CommandLineResult struct {

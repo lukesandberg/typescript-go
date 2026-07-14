@@ -106,7 +106,7 @@ func (test *tscInput) run(t *testing.T, scenario string) {
 					test.executeCommand(sys, baselineBuilder, commandLineArgs)
 				} else {
 					sys.mockWatchBackend.SendChangedPaths(changedPaths)
-					result.Watcher.DoCycle()
+					result.Watcher.DoCycle(t.Context())
 				}
 				sys.serializeState(baselineBuilder)
 				if result.Watcher != nil && sys.mockWatchBackend.HasWatches() {
