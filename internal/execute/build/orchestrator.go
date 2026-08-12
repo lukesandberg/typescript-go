@@ -231,13 +231,13 @@ func (o *Orchestrator) Start(ctx context.Context) tsc.CommandLineResult {
 	o.GenerateGraph(nil)
 	result := o.buildOrClean()
 	if o.opts.Command.CompilerOptions.Watch.IsTrue() {
-		o.Watch(ctx)
+		o.Watch()
 		result.Watcher = o
 	}
 	return result
 }
 
-func (o *Orchestrator) Watch(ctx context.Context) {
+func (o *Orchestrator) Watch() {
 	o.wm.Lock()
 
 	if o.opts.Testing == nil {
@@ -258,7 +258,7 @@ func (o *Orchestrator) Watch(ctx context.Context) {
 	o.wm.Unlock()
 
 	if o.opts.Testing == nil {
-		o.wm.RunLoop(ctx, o.DoCycle)
+		o.wm.RunLoop(o.DoCycle)
 	}
 }
 

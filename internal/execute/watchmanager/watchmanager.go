@@ -1,11 +1,13 @@
 package watchmanager
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/microsoft/typescript-go/internal/core"
 	"github.com/microsoft/typescript-go/internal/fswatch"
@@ -341,11 +343,29 @@ func (wm *WatchManager) IsPathUnderWatch(path string, opts tspath.ComparePathsOp
 	return false
 }
 
-func (wm *WatchManager) RunLoop(ctx context.Context, doCycle func()) {
+// RunLoop processes watch cycles until SIGINT/SIGTERM arrives.
+//
+// Like the JS tsc, tsgo dies by the signal itself rather than shutting down
+// gracefully: the default disposition is restored and the signal re-raised, so the
+// exit code is the conventional 130/143 and the terminal is reset the way an
+// unhandled signal leaves it.
+//
+// The signal must be observed here rather than left entirely unhandled: waiting only
+// on doCycleCh parks the sole runnable goroutine, and Go's runtime aborts that with
+// "all goroutines are asleep - deadlock!" before any signal can arrive.
+//
+// CloseAllWatches is for the platforms where re-raising is unavailable (Windows):
+// there reRaiseSignal returns, this loop returns, and the caller keeps running, so
+// the watch handles must be released rather than left to process exit.
+func (wm *WatchManager) RunLoop(doCycle func()) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 	for {
 		select {
-		case <-ctx.Done():
+		case sig := <-sigCh:
 			wm.CloseAllWatches()
+			reRaiseSignal(sig)
 			return
 		case <-wm.doCycleCh:
 			doCycle()

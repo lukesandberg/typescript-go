@@ -239,7 +239,7 @@ func tscCompilation(ctx context.Context, sys tsc.System, commandLine *tsoptions.
 			reportErrorSummary,
 			testing,
 		)
-		watcher.start(ctx)
+		watcher.start()
 		return tsc.CommandLineResult{Status: tsc.ExitStatusSuccess, Watcher: watcher}
 	} else if configForCompilation.CompilerOptions().IsIncremental() {
 		return performIncrementalCompilation(

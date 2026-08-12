@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/microsoft/typescript-go/internal/core"
 	"github.com/microsoft/typescript-go/internal/execute"
@@ -25,8 +23,11 @@ func runMain() int {
 			return runAPI(args[1:])
 		}
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	result := execute.CommandLine(ctx, newSystem(), args, nil)
+	// No SIGINT/SIGTERM handler: like the JS tsc, the default disposition terminates
+	// the process, so an interrupt stops the compile at once and yields the
+	// conventional exit code (130/143) instead of running to completion and reporting
+	// success. Watch mode blocks forever, so WatchManager.RunLoop observes the signal
+	// itself and re-raises it; see the comment there.
+	result := execute.CommandLine(context.Background(), newSystem(), args, nil)
 	return int(result.Status)
 }

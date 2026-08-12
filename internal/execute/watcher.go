@@ -1,7 +1,6 @@
 package execute
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"slices"
@@ -126,7 +125,7 @@ func createWatcher(
 	return w
 }
 
-func (w *Watcher) start(ctx context.Context) {
+func (w *Watcher) start() {
 	w.wm.Lock()
 	w.extendedConfigCache = &tsc.ExtendedConfigCache{}
 	host := compiler.NewCompilerHost(w.sys.GetCurrentDirectory(), w.sys.FS(), w.sys.DefaultLibraryPath(), w.extendedConfigCache, getTraceFromSys(w.sys, w.config.Locale(), w.testing))
@@ -152,7 +151,7 @@ func (w *Watcher) start(ctx context.Context) {
 	w.wm.Unlock()
 
 	if w.testing == nil {
-		w.wm.RunLoop(ctx, w.DoCycle)
+		w.wm.RunLoop(w.DoCycle)
 	}
 }
 
